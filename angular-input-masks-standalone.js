@@ -1,8 +1,8 @@
 /**
- * angular-input-masks
- * Personalized input masks for AngularJS
- * @version v2.5.0
- * @link http://github.com/assisrafael/angular-input-masks
+ * angular-input-masks-extended
+ * Personalized input masks for AngularJS (Extended)
+ * @version v2.9.0
+ * @link http://github.com/pedrolucasp/angular-input-masks
  * @license MIT
  */
 require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
@@ -651,7 +651,7 @@ IErules.AP = [{
 }));
 },{}],2:[function(require,module,exports){
 //! moment.js
-//! version : 2.14.1
+//! version : 2.15.2
 //! authors : Tim Wood, Iskren Chernev, Moment.js contributors
 //! license : MIT
 //! momentjs.com
@@ -679,7 +679,9 @@ IErules.AP = [{
     }
 
     function isObject(input) {
-        return Object.prototype.toString.call(input) === '[object Object]';
+        // IE8 will treat undefined and null as object if it wasn't for
+        // input != null
+        return input != null && Object.prototype.toString.call(input) === '[object Object]';
     }
 
     function isObjectEmpty(obj) {
@@ -778,7 +780,7 @@ IErules.AP = [{
             var parsedParts = some.call(flags.parsedDateParts, function (i) {
                 return i != null;
             });
-            m._isValid = !isNaN(m._d.getTime()) &&
+            var isNowValid = !isNaN(m._d.getTime()) &&
                 flags.overflow < 0 &&
                 !flags.empty &&
                 !flags.invalidMonth &&
@@ -789,10 +791,17 @@ IErules.AP = [{
                 (!flags.meridiem || (flags.meridiem && parsedParts));
 
             if (m._strict) {
-                m._isValid = m._isValid &&
+                isNowValid = isNowValid &&
                     flags.charsLeftOver === 0 &&
                     flags.unusedTokens.length === 0 &&
                     flags.bigHour === undefined;
+            }
+
+            if (Object.isFrozen == null || !Object.isFrozen(m)) {
+                m._isValid = isNowValid;
+            }
+            else {
+                return isNowValid;
             }
         }
         return m._isValid;
@@ -934,7 +943,22 @@ IErules.AP = [{
                 utils_hooks__hooks.deprecationHandler(null, msg);
             }
             if (firstTime) {
-                warn(msg + '\nArguments: ' + Array.prototype.slice.call(arguments).join(', ') + '\n' + (new Error()).stack);
+                var args = [];
+                var arg;
+                for (var i = 0; i < arguments.length; i++) {
+                    arg = '';
+                    if (typeof arguments[i] === 'object') {
+                        arg += '\n[' + i + '] ';
+                        for (var key in arguments[0]) {
+                            arg += key + ': ' + arguments[0][key] + ', ';
+                        }
+                        arg = arg.slice(0, -2); // Remove trailing comma and space
+                    } else {
+                        arg = arguments[i];
+                    }
+                    args.push(arg);
+                }
+                warn(msg + '\nArguments: ' + Array.prototype.slice.call(args).join('') + '\n' + (new Error()).stack);
                 firstTime = false;
             }
             return fn.apply(this, arguments);
@@ -1458,15 +1482,21 @@ IErules.AP = [{
 
     // LOCALES
 
-    var MONTHS_IN_FORMAT = /D[oD]?(\[[^\[\]]*\]|\s+)+MMMM?/;
+    var MONTHS_IN_FORMAT = /D[oD]?(\[[^\[\]]*\]|\s)+MMMM?/;
     var defaultLocaleMonths = 'January_February_March_April_May_June_July_August_September_October_November_December'.split('_');
     function localeMonths (m, format) {
+        if (!m) {
+            return this._months;
+        }
         return isArray(this._months) ? this._months[m.month()] :
             this._months[(this._months.isFormat || MONTHS_IN_FORMAT).test(format) ? 'format' : 'standalone'][m.month()];
     }
 
     var defaultLocaleMonthsShort = 'Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sep_Oct_Nov_Dec'.split('_');
     function localeMonthsShort (m, format) {
+        if (!m) {
+            return this._monthsShort;
+        }
         return isArray(this._monthsShort) ? this._monthsShort[m.month()] :
             this._monthsShort[MONTHS_IN_FORMAT.test(format) ? 'format' : 'standalone'][m.month()];
     }
@@ -1963,18 +1993,21 @@ IErules.AP = [{
 
     var defaultLocaleWeekdays = 'Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday'.split('_');
     function localeWeekdays (m, format) {
+        if (!m) {
+            return this._weekdays;
+        }
         return isArray(this._weekdays) ? this._weekdays[m.day()] :
             this._weekdays[this._weekdays.isFormat.test(format) ? 'format' : 'standalone'][m.day()];
     }
 
     var defaultLocaleWeekdaysShort = 'Sun_Mon_Tue_Wed_Thu_Fri_Sat'.split('_');
     function localeWeekdaysShort (m) {
-        return this._weekdaysShort[m.day()];
+        return (m) ? this._weekdaysShort[m.day()] : this._weekdaysShort;
     }
 
     var defaultLocaleWeekdaysMin = 'Su_Mo_Tu_We_Th_Fr_Sa'.split('_');
     function localeWeekdaysMin (m) {
-        return this._weekdaysMin[m.day()];
+        return (m) ? this._weekdaysMin[m.day()] : this._weekdaysMin;
     }
 
     function day_of_week__handleStrictParse(weekdayName, format, strict) {
@@ -2669,9 +2702,9 @@ IErules.AP = [{
     }
 
     utils_hooks__hooks.createFromInputFallback = deprecate(
-        'moment construction falls back to js Date. This is ' +
-        'discouraged and will be removed in upcoming major ' +
-        'release. Please refer to ' +
+        'value provided is not in a recognized ISO format. moment construction falls back to js Date(), ' +
+        'which is not reliable across all browsers and versions. Non ISO date formats are ' +
+        'discouraged and will be removed in an upcoming major release. Please refer to ' +
         'http://momentjs.com/guides/#/warnings/js-date/ for more info.',
         function (config) {
             config._d = new Date(config._i + (config._useUTC ? ' UTC' : ''));
@@ -3170,6 +3203,14 @@ IErules.AP = [{
         return obj instanceof Duration;
     }
 
+    function absRound (number) {
+        if (number < 0) {
+            return Math.round(-1 * number) * -1;
+        } else {
+            return Math.round(number);
+        }
+    }
+
     // FORMATTING
 
     function offset (token, separator) {
@@ -3320,7 +3361,13 @@ IErules.AP = [{
         if (this._tzm) {
             this.utcOffset(this._tzm);
         } else if (typeof this._i === 'string') {
-            this.utcOffset(offsetFromString(matchOffset, this._i));
+            var tZone = offsetFromString(matchOffset, this._i);
+
+            if (tZone === 0) {
+                this.utcOffset(0, true);
+            } else {
+                this.utcOffset(offsetFromString(matchOffset, this._i));
+            }
         }
         return this;
     }
@@ -3375,7 +3422,7 @@ IErules.AP = [{
     }
 
     // ASP.NET json date format regex
-    var aspNetRegex = /^(\-)?(?:(\d*)[. ])?(\d+)\:(\d+)(?:\:(\d+)\.?(\d{3})?\d*)?$/;
+    var aspNetRegex = /^(\-)?(?:(\d*)[. ])?(\d+)\:(\d+)(?:\:(\d+)(\.\d*)?)?$/;
 
     // from http://docs.closure-library.googlecode.com/git/closure_goog_date_date.js.source.html
     // somewhat more in line with 4.4.3.2 2004 spec, but allows decimal anywhere
@@ -3407,11 +3454,11 @@ IErules.AP = [{
             sign = (match[1] === '-') ? -1 : 1;
             duration = {
                 y  : 0,
-                d  : toInt(match[DATE])        * sign,
-                h  : toInt(match[HOUR])        * sign,
-                m  : toInt(match[MINUTE])      * sign,
-                s  : toInt(match[SECOND])      * sign,
-                ms : toInt(match[MILLISECOND]) * sign
+                d  : toInt(match[DATE])                         * sign,
+                h  : toInt(match[HOUR])                         * sign,
+                m  : toInt(match[MINUTE])                       * sign,
+                s  : toInt(match[SECOND])                       * sign,
+                ms : toInt(absRound(match[MILLISECOND] * 1000)) * sign // the millisecond decimal point is included in the match
             };
         } else if (!!(match = isoRegex.exec(input))) {
             sign = (match[1] === '-') ? -1 : 1;
@@ -3484,14 +3531,6 @@ IErules.AP = [{
         }
 
         return res;
-    }
-
-    function absRound (number) {
-        if (number < 0) {
-            return Math.round(-1 * number) * -1;
-        } else {
-            return Math.round(number);
-        }
     }
 
     // TODO: remove 'name' arg after deprecation is removed
@@ -4808,7 +4847,7 @@ IErules.AP = [{
     // Side effect imports
 
 
-    utils_hooks__hooks.version = '2.14.1';
+    utils_hooks__hooks.version = '2.15.2';
 
     setHookCallback(local__createLocal);
 
@@ -5449,35 +5488,51 @@ var maskFactory = require('mask-factory');
  * FIXME: all numbers will have 9 digits after 2016.
  * see http://portal.embratel.com.br/embratel/9-digito/
  */
-var phoneMask8D = new StringMask('(00) 0000-0000'),
-	phoneMask9D = new StringMask('(00) 00000-0000'),
-	phoneMask0800 = new StringMask('0000-000-0000');
+var phoneMask8D = {
+	areaCode: new StringMask('(00) 0000-0000'), 	// with area code
+	simple: new StringMask('0000-0000') 			// without area code
+}, phoneMask9D = {
+	areaCode: new StringMask('(00) 00000-0000'), 	// with area code
+	simple: new StringMask('00000-0000') 			// without area code
+}, phoneMask0800 = {
+	areaCode: null,									// N/A
+	simple: new StringMask('0000-000-0000') 		// N/A, so it's "simple"
+};
 
 module.exports = maskFactory({
-	clearValue: function(rawValue) {
+	clearValue: function (rawValue) {
 		return rawValue.toString().replace(/[^0-9]/g, '').slice(0, 11);
 	},
-	format: function(cleanValue) {
-		var formatedValue;
+	format: function (cleanValue) {
+		var formattedValue;
+
 		if (cleanValue.indexOf('0800') === 0) {
-			formatedValue = phoneMask0800.apply(cleanValue);
+			formattedValue = phoneMask0800.simple.apply(cleanValue);
+		} else if (cleanValue.length < 9) {
+			formattedValue = phoneMask8D.simple.apply(cleanValue) || '';
+		} else if (cleanValue.length < 10) {
+			formattedValue = phoneMask9D.simple.apply(cleanValue);
 		} else if (cleanValue.length < 11) {
-			formatedValue = phoneMask8D.apply(cleanValue) || '';
+			formattedValue = phoneMask8D.areaCode.apply(cleanValue);
 		} else {
-			formatedValue = phoneMask9D.apply(cleanValue);
+			formattedValue = phoneMask9D.areaCode.apply(cleanValue);
 		}
 
-		return formatedValue.trim().replace(/[^0-9]$/, '');
+		return formattedValue.trim().replace(/[^0-9]$/, '');
 	},
-	getModelValue: function(formattedValue, originalModelType) {
+	getModelValue: function (formattedValue, originalModelType) {
 		var cleanValue = this.clearValue(formattedValue);
-
 		return originalModelType === 'number' ? parseInt(cleanValue) : cleanValue;
 	},
 	validations: {
-		brPhoneNumber: function(value) {
+		brPhoneNumber: function (value) {
 			var valueLength = value && value.toString().length;
-			return valueLength === 10 || valueLength === 11;
+
+			// 8- 8D without DD
+			// 9- 9D without DD
+			// 10- 9D with DD
+			// 11- 8D with DD and 0800
+			return valueLength >= 8 && valueLength <= 11;
 		}
 	}
 });
@@ -6160,12 +6215,34 @@ module.exports = function TimeMaskDirective() {
 			var timeMask = new StringMask(timeFormat);
 
 			function formatter(value) {
+				var cleanValue, correctedValue, separatedTimeValues, hours, minutes, seconds;
+
 				if (ctrl.$isEmpty(value)) {
 					return value;
 				}
 
-				var cleanValue = value.replace(/[^0-9]/g, '').slice(0, unformattedValueLength) || '';
-				return (timeMask.apply(cleanValue) || '').replace(/[^0-9]$/, '');
+				cleanValue = value.replace(/[^0-9]/g, '').slice(0, unformattedValueLength) || '';
+				separatedTimeValues = cleanValue.match(/.{1,2}/g);
+
+				hours = parseInt(separatedTimeValues[0]);
+				minutes = parseInt(separatedTimeValues[1]);
+				seconds = parseInt(separatedTimeValues[2] || 0);
+
+				if (hours > 24) {
+					hours = 24;
+				}
+
+				if (minutes > 60) {
+					minutes = 60;
+				}
+
+				if (seconds > 60) {
+					seconds = 60;
+				}
+
+				correctedValue = '' + hours + minutes + seconds;
+
+				return (timeMask.apply(correctedValue) || '').replace(/[^0-9]$/, '');
 			}
 
 			ctrl.$formatters.push(formatter);
@@ -6177,6 +6254,9 @@ module.exports = function TimeMaskDirective() {
 
 				var viewValue = formatter(value);
 				var modelValue = viewValue;
+
+				console.info('Wowowowowow');
+				console.debug(modelValue, viewValue, formatter(value), value);
 
 				if (ctrl.$viewValue !== viewValue) {
 					ctrl.$setViewValue(viewValue);

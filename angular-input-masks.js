@@ -1,8 +1,8 @@
 /**
- * angular-input-masks
- * Personalized input masks for AngularJS
- * @version v2.5.0
- * @link http://github.com/assisrafael/angular-input-masks
+ * angular-input-masks-extended
+ * Personalized input masks for AngularJS (Extended)
+ * @version v2.9.0
+ * @link http://github.com/pedrolucasp/angular-input-masks
  * @license MIT
  */
 require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
@@ -356,35 +356,51 @@ var maskFactory = require('mask-factory');
  * FIXME: all numbers will have 9 digits after 2016.
  * see http://portal.embratel.com.br/embratel/9-digito/
  */
-var phoneMask8D = new StringMask('(00) 0000-0000'),
-	phoneMask9D = new StringMask('(00) 00000-0000'),
-	phoneMask0800 = new StringMask('0000-000-0000');
+var phoneMask8D = {
+	areaCode: new StringMask('(00) 0000-0000'), 	// with area code
+	simple: new StringMask('0000-0000') 			// without area code
+}, phoneMask9D = {
+	areaCode: new StringMask('(00) 00000-0000'), 	// with area code
+	simple: new StringMask('00000-0000') 			// without area code
+}, phoneMask0800 = {
+	areaCode: null,									// N/A
+	simple: new StringMask('0000-000-0000') 		// N/A, so it's "simple"
+};
 
 module.exports = maskFactory({
-	clearValue: function(rawValue) {
+	clearValue: function (rawValue) {
 		return rawValue.toString().replace(/[^0-9]/g, '').slice(0, 11);
 	},
-	format: function(cleanValue) {
-		var formatedValue;
+	format: function (cleanValue) {
+		var formattedValue;
+
 		if (cleanValue.indexOf('0800') === 0) {
-			formatedValue = phoneMask0800.apply(cleanValue);
+			formattedValue = phoneMask0800.simple.apply(cleanValue);
+		} else if (cleanValue.length < 9) {
+			formattedValue = phoneMask8D.simple.apply(cleanValue) || '';
+		} else if (cleanValue.length < 10) {
+			formattedValue = phoneMask9D.simple.apply(cleanValue);
 		} else if (cleanValue.length < 11) {
-			formatedValue = phoneMask8D.apply(cleanValue) || '';
+			formattedValue = phoneMask8D.areaCode.apply(cleanValue);
 		} else {
-			formatedValue = phoneMask9D.apply(cleanValue);
+			formattedValue = phoneMask9D.areaCode.apply(cleanValue);
 		}
 
-		return formatedValue.trim().replace(/[^0-9]$/, '');
+		return formattedValue.trim().replace(/[^0-9]$/, '');
 	},
-	getModelValue: function(formattedValue, originalModelType) {
+	getModelValue: function (formattedValue, originalModelType) {
 		var cleanValue = this.clearValue(formattedValue);
-
 		return originalModelType === 'number' ? parseInt(cleanValue) : cleanValue;
 	},
 	validations: {
-		brPhoneNumber: function(value) {
+		brPhoneNumber: function (value) {
 			var valueLength = value && value.toString().length;
-			return valueLength === 10 || valueLength === 11;
+
+			// 8- 8D without DD
+			// 9- 9D without DD
+			// 10- 9D with DD
+			// 11- 8D with DD and 0800
+			return valueLength >= 8 && valueLength <= 11;
 		}
 	}
 });
@@ -1067,12 +1083,34 @@ module.exports = function TimeMaskDirective() {
 			var timeMask = new StringMask(timeFormat);
 
 			function formatter(value) {
+				var cleanValue, correctedValue, separatedTimeValues, hours, minutes, seconds;
+
 				if (ctrl.$isEmpty(value)) {
 					return value;
 				}
 
-				var cleanValue = value.replace(/[^0-9]/g, '').slice(0, unformattedValueLength) || '';
-				return (timeMask.apply(cleanValue) || '').replace(/[^0-9]$/, '');
+				cleanValue = value.replace(/[^0-9]/g, '').slice(0, unformattedValueLength) || '';
+				separatedTimeValues = cleanValue.match(/.{1,2}/g);
+
+				hours = parseInt(separatedTimeValues[0]);
+				minutes = parseInt(separatedTimeValues[1]);
+				seconds = parseInt(separatedTimeValues[2] || 0);
+
+				if (hours > 24) {
+					hours = 24;
+				}
+
+				if (minutes > 60) {
+					minutes = 60;
+				}
+
+				if (seconds > 60) {
+					seconds = 60;
+				}
+
+				correctedValue = '' + hours + minutes + seconds;
+
+				return (timeMask.apply(correctedValue) || '').replace(/[^0-9]$/, '');
 			}
 
 			ctrl.$formatters.push(formatter);
@@ -1084,6 +1122,9 @@ module.exports = function TimeMaskDirective() {
 
 				var viewValue = formatter(value);
 				var modelValue = viewValue;
+
+				console.info('Wowowowowow');
+				console.debug(modelValue, viewValue, formatter(value), value);
 
 				if (ctrl.$viewValue !== viewValue) {
 					ctrl.$setViewValue(viewValue);
