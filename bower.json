@@ -1,11 +1,11 @@
 {
   "name": "angular-input-masks",
   "version": "2.9.0",
-  "homepage": "https://github.com/assisrafael/angular-input-masks",
+  "homepage": "https://github.com/pedrolucasp/angular-input-masks",
   "authors": [
-    "Igor Rafael <igor.rafael@gmail.com>"
+    "Pedro Lucas Porcellis <pedrolucasporcellis@gmail.com>"
   ],
-  "description": "Personalized and localized input masks for AngularJS",
+  "description": "Personalized and localized input masks for AngularJS (Extended)",
   "main": "angular-input-masks-standalone.js",
   "keywords": [
     "angular",
